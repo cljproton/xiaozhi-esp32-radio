@@ -105,6 +105,9 @@ jobs:
             gh release create "$TAG" \
               --title "Manual builds" \
               --notes "Artifacts built by the Build Board workflow."
+            # 手动构建不算正式版本，避免占用 /releases/latest。
+            gh api -X PATCH "repos/$GH_REPO/releases/$(gh api "repos/$GH_REPO/releases/tags/$TAG" --jq .id)" \
+              -F make_latest=false >/dev/null
           fi
           cp firmware/merged-binary.bin "firmware/$ASSET"
           gh release upload "$TAG" "firmware/$ASSET" --clobber
