@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Radio Stations</title>
+<style>
+:root{--bg:#0f1115;--card:#181b21;--line:#262a33;--fg:#e8eaee;--dim:#8b919c;--acc:#4f8cff;--ok:#3ecf8e}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--fg);font-size:15px;padding:12px;max-width:640px;margin:0 auto}
+header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+h1{font-size:18px}
+#lang{background:var(--card);border:1px solid var(--line);color:var(--dim);border-radius:8px;padding:4px 10px;cursor:pointer}
+#status{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin-bottom:12px;font-size:14px}
+#status-text{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dot{width:9px;height:9px;border-radius:50%;background:#555;flex:none}
+.dot.on{background:var(--ok)}
+.dot.mid{background:#e0b33a}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px}
+.card h2{font-size:15px;margin-bottom:8px;color:var(--dim)}
+.row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+input,select{background:var(--bg);border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:8px;font-size:14px;min-width:0}
+input[type=text]{flex:1 1 120px}
+select{flex:1 1 100px}
+button{background:var(--acc);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:14px;cursor:pointer}
+button.ghost{background:transparent;border:1px solid var(--line);color:var(--fg)}
+button.danger{background:transparent;border:1px solid #a33;color:#f88}
+button.small{padding:5px 10px;font-size:13px}
+button:disabled{opacity:.4}
+ul{list-style:none}
+li{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)}
+.li-actions{display:flex;gap:6px;flex-wrap:wrap;width:100%}
+li:last-child{border-bottom:0}
+.li-main{flex:1 1 100%;min-width:0}
+.li-name{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.li-sub{font-size:12px;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.muted{color:var(--dim);font-size:13px;padding:6px 0}
+.gain{display:flex;align-items:center;gap:6px;margin-top:6px}
+.gain-label{font-size:12px;color:var(--dim);white-space:nowrap}
+.gain input[type=range]{flex:1;accent-color:var(--acc)}
+.gain .val{font-size:12px;color:var(--dim);width:42px;text-align:right}
+#mirrors-box{display:none;margin-top:8px}
+#mirrors-box.open{display:block}
+#vol-row{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin:0 0 12px;font-size:14px}
+#vol-row input[type=range]{flex:1;accent-color:var(--acc);min-width:60px}
+.vol-label{color:var(--dim);font-size:13px;white-space:nowrap}
+.vol-val{color:var(--dim);font-size:12px;width:38px;text-align:right}
+textarea{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:8px;font-size:13px;min-height:60px;resize:vertical}
+.hint{font-size:12px;color:var(--dim);margin-top:4px}
+.pager{display:flex;gap:6px;justify-content:center;margin-top:8px}
+@media (max-width:480px){
+  body{padding:10px}
+  .card{padding:10px}
+  input,select,textarea{font-size:16px}
+  button.small{padding:8px 12px;font-size:14px}
+}
+</style>
+</head>
+<body>
+<header><h1 id="t-title">电台管理</h1><button id="lang" class="ghost">EN</button></header>
+<div id="status"><span class="dot" id="dot"></span><span id="status-text">-</span><button id="btn-stop" class="small ghost" style="margin-left:auto" onclick="stopPlay()">&#9209; <span id="t-stop">停止</span></button></div>
+<div id="vol-row"><span class="vol-label">&#128266; <span id="t-vol">音量</span></span><input type="range" id="vol" min="0" max="100" step="1" value="100" aria-label="volume"><span id="vol-val" class="vol-val">100%</span></div>
+
+<div class="card">
+  <h2 id="t-search">搜索电台（radio-browser.info）</h2>
+  <div class="row"><input type="text" id="q" placeholder=""></div>
+  <div class="row">
+    <select id="tag"><option value=""></option></select>
+    <select id="country"><option value=""></option></select>
+    <select id="langsel"><option value=""></option></select>
+  </div>
+  <div class="row"><button id="btn-search" onclick="doSearch()">&#128269; 搜索</button></div>
+  <ul id="results"></ul>
+  <div id="pager" class="pager"><button id="btn-rv-prev" class="ghost small"></button><button id="btn-rv-next" class="ghost small"></button></div>
+</div>
+
+<div class="card">
+  <h2 id="t-my">我的电台</h2>
+  <ul id="mine"></ul>
+  <div id="pager-mine" class="pager"><button id="btn-mv-prev" class="ghost small"></button><button id="btn-mv-next" class="ghost small"></button></div>
+</div>
+
+<div class="card">
+  <h2 style="cursor:pointer" onclick="toggleMirrors()">&#9881; <span id="t-mirrors">API 镜像</span></h2>
+  <div id="mirrors-box">
+    <textarea id="mirrors"></textarea>
+    <div class="hint" id="t-mirrors-hint"></div>
+    <div class="row" style="margin-top:6px"><button class="small" id="btn-save-mirrors" onclick="saveMirrors()">&#128190; 保存</button> <button class="small ghost" id="btn-validate-mirrors" onclick="validateMirrors()">✓ 校验</button></div>
+    <div class="hint" id="mirrors-validate-result"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const I18N = {
+  zh: {title:"电台管理",search:"搜索电台（radio-browser.info）",keyword:"关键词，如 BBC、新闻台",tag:"分类",country:"国家",lang:"语言",searchBtn:"\uD83D\uDD0D 搜索",my:"我的电台",play:"播放",add:"添加",del:"删除",edit:"编辑",mirrors:"API 镜像",mirrorsHint:"请到radio-browser获取本地区的API",empty:"暂无电台，去上面搜索添加吧",none:"无结果",searching:"搜索中...",saving:"保存中...",stPlaying:"正在播放",stStopped:"空闲",stConnecting:"连接中",stBuffering:"缓冲中",stError:"错误",wait:"等待语音播报结束...",stop:"停止",vol:"音量",gain:"增益",gainHint:"100% 为默认；音量偏小的电台可适当调大",langBtn:"EN",prev:"上一页",next:"下一页",up:"上",down:"下",top:"置顶",errNoMirror:"尚未配置 API 镜像：请展开下方「API 镜像」，填入 radio-browser 的 API 地址并保存，然后再搜索",errMirrorUnreachable:"API 镜像无法连接：请检查网络，或在下方「API 镜像」里更换地址后点「校验」",errNetwork:"网络异常，暂时无法访问 API 镜像，请稍后重试",errUnknown:"操作失败，请稍后重试",validating:"校验中...",mirrorOk:"可用",mirrorFail:"不可用"},
+  en: {title:"Radio Stations",search:"Search stations (radio-browser.info)",keyword:"Keyword, e.g. BBC, news",tag:"Tag",country:"Country",lang:"Language",searchBtn:"\uD83D\uDD0D Search",my:"My Stations",play:"Play",add:"Add",del:"Del",edit:"Edit",mirrors:"API Mirrors",mirrorsHint:"One mirror host per line, e.g. all.api.radio-browser.info; saved on the device.",empty:"No stations yet - search above to add some",none:"No results",searching:"Searching...",saving:"Saving...",stPlaying:"Playing",stStopped:"Idle",stConnecting:"Connecting",stBuffering:"Buffering",stError:"Error",wait:"Waiting for speech to finish...",stop:"Stop",vol:"Volume",gain:"Gain",gainHint:"100% is normal; raise it for quiet stations",langBtn:"中文",prev:"Prev",next:"Next",up:"Up",down:"Down",top:"Top",errNoMirror:"No API mirror yet: open \"API Mirrors\" below, add a radio-browser API host, save, then search again",errMirrorUnreachable:"API mirror unreachable: check your network or replace the mirror below",errNetwork:"Network error: cannot reach the API mirror, please try again",errUnknown:"Operation failed, please try again",validating:"Checking...",mirrorOk:"ok",mirrorFail:"failed"}
+};
+let lang = localStorage.getItem("radio_lang") || "zh";
+const T = () => I18N[lang];
+
+function applyLang(){
+  document.getElementById("t-title").textContent = T().title;
+  document.getElementById("t-search").textContent = T().search;
+  document.getElementById("t-my").textContent = T().my;
+  document.getElementById("t-mirrors").textContent = T().mirrors;
+  document.getElementById("t-mirrors-hint").textContent = T().mirrorsHint;
+  document.getElementById("btn-search").innerHTML = T().searchBtn;
+  document.getElementById("btn-save-mirrors").textContent = "\uD83D\uDCBE " + (lang==="zh"?"保存":"Save");
+  document.getElementById("q").placeholder = T().keyword;
+  document.getElementById("tag").options[0].text = T().tag;
+  document.getElementById("country").options[0].text = T().country;
+  document.getElementById("langsel").options[0].text = T().lang;
+  document.getElementById("lang").textContent = T().langBtn;
+  document.getElementById("t-stop").textContent = T().stop;
+  document.getElementById("t-vol").textContent = T().vol;
+  document.getElementById("btn-rv-prev").textContent = T().prev;
+  document.getElementById("btn-rv-next").textContent = T().next;
+  document.getElementById("btn-mv-prev").textContent = T().prev;
+  document.getElementById("btn-mv-next").textContent = T().next;
+  setSearchPager();
+  setMinePager();
+  renderMine(); renderStatus(lastStatus);
+}
+
+/* ---------- device API ---------- */
+async function deviceApi(path, opts){
+  const r = await fetch(path, opts);
+  const j = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(j.error || r.status);
+  return j;
+}
+const post = (p, body) => deviceApi(p, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body||{})});
+function friendlyError(e){
+  const m = (e && e.message) || "";
+  if(m.includes("no mirror configured")) return T().errNoMirror;
+  if(m.includes("no mirror reachable")) return T().errMirrorUnreachable;
+  if(/Failed to fetch|NetworkError|Load failed/i.test(m)) return T().errNetwork;
+  return m || T().errUnknown;
+}
+
+/* ---------- playback status ---------- */
+let lastStatus = {playing:false,state:"stopped",name:""};
+const ST_KEYS = {playing:"stPlaying",stopped:"stStopped",connecting:"stConnecting",buffering:"stBuffering",error:"stError"};
+function renderStatus(s){
+  lastStatus = s;
+  const dot = document.getElementById("dot"), txt = document.getElementById("status-text");
+  dot.className = "dot" + (s.state==="playing"?" on":(s.state==="connecting"||s.state==="buffering")?" mid":"");
+  txt.textContent = s.playing ? (T()[ST_KEYS[s.state]] + (s.name?": "+s.name:"")) : T().stStopped;
+}
+async function pollStatus(){
+  try{ renderStatus(await deviceApi("/api/status")); }catch(e){}
+}
+setInterval(pollStatus, 3000);
+pollStatus();
+
+/* ---------- stop playback ---------- */
+async function stopPlay(){
+  try{ await post("/api/stop"); }catch(e){}
+  pollStatus();
+}
+const volEl = document.getElementById("vol");
+const volVal = document.getElementById("vol-val");
+volEl.oninput = () => { volVal.textContent = volEl.value + "%"; };
+volEl.onchange = async () => { try{ await post("/api/volume",{volume:+volEl.value}); }catch(e){} };
+
+/* ---------- my stations ---------- */
+let minePage = 0;
+let lastMineCount = 0;
+const MY_PAGE_SIZE = 10;
+async function renderMine(){
+  const ul = document.getElementById("mine");
+  try{
+    const data = await deviceApi("/api/stations");
+    const stations = data.stations;
+    lastMineCount = stations.length;
+    document.getElementById("t-my").textContent = T().my + " (" + stations.length + "/" + data.max + ")";
+    renderMinePage(stations, minePage, ul);
+  }catch(e){ ul.innerHTML = '<li class="muted">'+friendlyError(e)+"</li>"; }
+}
+function renderMinePage(stations, page, ul){
+  ul.innerHTML = "";
+  const start = page*MY_PAGE_SIZE;
+  const slice = stations.slice(start, start+MY_PAGE_SIZE);
+  if(!slice.length){ ul.innerHTML = '<li class="muted">'+T().empty+"</li>"; return; }
+  slice.forEach(s => {
+    const li = document.createElement("li");
+    const main = document.createElement("div"); main.className = "li-main";
+    const nm = document.createElement("div"); nm.className = "li-name"; nm.textContent = s.name;
+    const sb = document.createElement("div"); sb.className = "li-sub"; sb.textContent = s.url;
+    const gain = document.createElement("div"); gain.className = "gain"; gain.title = T().gainHint;
+    const gl = document.createElement("span"); gl.className = "gain-label"; gl.textContent = T().gain;
+    const slider = document.createElement("input"); slider.type="range"; slider.min=50; slider.max=300; slider.value=s.gain;
+    const val = document.createElement("span"); val.className="val"; val.textContent = s.gain+"%";
+    let timer = null;
+    slider.oninput = () => { val.textContent = slider.value+"%"; };
+    slider.onchange = () => { post("/api/stations/gain",{index:s.index,gain:+slider.value}); };
+    gain.append(gl, slider, val);
+    main.append(nm,sb,gain);
+    const bPlay = mkBtn(T().play,"ghost",()=>post("/api/preview",{name:s.name,url:s.url}));
+    const bUp = mkBtn(T().up,"ghost",async()=>{ try{ await post("/api/stations/order",{index:s.index,dir:"up"}); await renderMine(); }catch(e){ alert(e.message); } });
+    const bDown = mkBtn(T().down,"ghost",async()=>{ try{ await post("/api/stations/order",{index:s.index,dir:"down"}); await renderMine(); }catch(e){ alert(e.message); } });
+    const bTop = mkBtn(T().top,"ghost",async()=>{ try{ await post("/api/stations/order",{index:s.index,dir:"top"}); await renderMine(); }catch(e){ alert(e.message); } });
+    const bEdit = mkBtn(T().edit,"ghost",()=>editStationUrl(s.index, s.name, s.url));
+    const bDel = mkBtn(T().del,"danger",async()=>{ try{ await deviceApi("/api/stations?index="+s.index,{method:"DELETE"}); }catch(e){ alert(e.message); return; } const newCount = Math.max(0, lastMineCount - 1); if(minePage*MY_PAGE_SIZE >= newCount){ minePage = Math.max(0, Math.ceil(newCount/MY_PAGE_SIZE)-1); } await renderMine(); });
+    const actions = document.createElement("div"); actions.className = "li-actions";
+    actions.append(bPlay,bUp,bDown,bTop,bEdit,bDel);
+    li.append(main, actions);
+    ul.append(li);
+  });
+}
+async function minePrev(){ if(minePage > 0){ minePage--; await renderMine(); } }
+async function mineNext(){ if(minePage*MY_PAGE_SIZE < lastMineCount){ minePage++; await renderMine(); } }
+function setMinePager(){
+  document.getElementById("btn-mv-prev").disabled = (minePage <= 0);
+  document.getElementById("btn-mv-next").disabled = (minePage*MY_PAGE_SIZE >= lastMineCount);
+}
+document.getElementById("btn-mv-prev").onclick = minePrev;
+document.getElementById("btn-mv-next").onclick = mineNext;
+function mkBtn(text, cls, onclick){
+  const b = document.createElement("button");
+  b.className = "small "+cls; b.textContent = text; b.onclick = onclick;
+  return b;
+}
+
+function editStationUrl(index, name, currentUrl){
+  const newUrl = prompt("编辑 " + name + " 的 URL", currentUrl);
+  if (!newUrl || newUrl === currentUrl) return;
+  if (!newUrl.startsWith("http://") && !newUrl.startsWith("https://")) {
+    alert("URL 必须以 http:// 或 https:// 开头");
+    return;
+  }
+  post("/api/stations/" + index, {url: newUrl}).then(() => renderMine());
+}
+
+/* ---------- radio-browser search (browser -> API directly) ---------- */
+let mirrors = [];
+function apiBase(m){ return /^https?:\/\//.test(m) ? m : "https://" + m; }
+
+async function rbFetch(path){
+  for(const m of mirrors){
+    try{
+      const r = await fetch(apiBase(m)+path);
+      if(r.ok) return await r.json();
+    }catch(e){}
+  }
+  // All configured mirrors failed: discover alternates from /json/servers.
+  if(!mirrors.length){ throw new Error("no mirror configured"); }
+  try{
+    const r = await fetch(apiBase(mirrors[0])+"/json/servers");
+    if(r.ok){
+      const servers = await r.json();
+      if(Array.isArray(servers) && servers.length){
+        mirrors = servers.map(s=>s.name).filter(n=>n);
+        return await rbFetch(path);
+      }
+    }
+  }catch(e){}
+  throw new Error("no mirror reachable");
+}
+
+let searchResults = [], searchOffset = 0, searchHasMore = true;
+const SEARCH_PAGE_SIZE = 20;
+
+function buildSearchPath(){
+  const params = new URLSearchParams({order:"votes",reverse:"true",hidebroken:"true",limit:String(SEARCH_PAGE_SIZE),"offset":String(searchOffset)});
+  const q = document.getElementById("q").value.trim();
+  if(q) params.set("name", q);
+  const tag = document.getElementById("tag").value;
+  if(tag) params.set("tagList", tag);
+  const cc = document.getElementById("country").value;
+  if(cc) params.set("countrycode", cc);
+  const l = document.getElementById("langsel").value;
+  if(l) params.set("language", l);
+  return "/json/stations/search?"+params;
+}
+async function fetchSearchPage(){ return await rbFetch(buildSearchPath()); }
+function renderResults(){
+  const ul = document.getElementById("results");
+  ul.innerHTML = "";
+  if(!searchResults.length){ ul.innerHTML = '<li class="muted">'+T().none+"</li>"; return; }
+  searchResults.forEach(it => {
+    const url = it.url_resolved || it.url || "";
+    if(!url.startsWith("http")) return;
+    const li = document.createElement("li");
+    const main = document.createElement("div"); main.className = "li-main";
+    const nm = document.createElement("div"); nm.className = "li-name"; nm.textContent = it.name || "(?)";
+    const sb = document.createElement("div"); sb.className = "li-sub";
+    sb.textContent = [it.country, it.codec, it.bitrate?it.bitrate+"kbps":"", "\uD83D\uDC4D"+(it.votes||0)].filter(Boolean).join(" · ");
+    main.append(nm,sb);
+    const bPrev = mkBtn(T().play,"ghost",async()=>{ await post("/api/preview",{name:it.name||"",url}); pollStatus(); });
+    const bAdd = mkBtn(T().add,"",async()=>{
+      try{ await post("/api/stations",{name:it.name||"",url,genre:(it.tags||"").split(",")[0]||"",country:it.country||""}); renderMine(); }
+      catch(e){ alert(e.message); }
+    });
+    const actions = document.createElement("div"); actions.className = "li-actions";
+    actions.append(bPrev,bAdd);
+    li.append(main, actions);
+    ul.append(li);
+  });
+}
+function setSearchPager(){
+  document.getElementById("btn-rv-prev").disabled = (searchOffset <= 0);
+  document.getElementById("btn-rv-next").disabled = (!searchHasMore);
+}
+async function doSearch(){
+  searchOffset = 0;
+  let items;
+  try{ items = await fetchSearchPage(); }catch(e){ if((e.message||"").includes("no mirror configured")) document.getElementById("mirrors-box").classList.add("open"); document.getElementById("results").innerHTML='<li class="muted">'+friendlyError(e)+"</li>"; return; }
+  searchResults = items;
+  searchHasMore = items.length >= SEARCH_PAGE_SIZE;
+  renderResults();
+  setSearchPager();
+}
+async function nextSearchPage(){
+  if(!searchHasMore) return;
+  const prevOffset = searchOffset;
+  searchOffset += SEARCH_PAGE_SIZE;
+  let items;
+  try{ items = await fetchSearchPage(); }catch(e){ searchOffset = prevOffset; return; }
+  searchResults = items;
+  searchHasMore = items.length >= SEARCH_PAGE_SIZE;
+  renderResults();
+  setSearchPager();
+}
+async function prevSearchPage(){
+  if(searchOffset <= 0) return;
+  const prevOffset = searchOffset;
+  searchOffset -= SEARCH_PAGE_SIZE;
+  let items;
+  try{ items = await fetchSearchPage(); }catch(e){ searchOffset = prevOffset; return; }
+  searchResults = items;
+  searchHasMore = items.length >= SEARCH_PAGE_SIZE;
+  renderResults();
+  setSearchPager();
+}
+document.getElementById("btn-rv-prev").onclick = prevSearchPage;
+document.getElementById("btn-rv-next").onclick = nextSearchPage;
+document.getElementById("q").addEventListener("keydown", e => { if(e.key==="Enter") doSearch(); });
+
+/* ---------- category dropdowns (loaded from the API) ---------- */
+async function loadSelect(sel, path, nameKey, countKey){
+  try{
+    const items = await rbFetch(path);
+    items.slice(0,60).forEach(it => {
+      const o = document.createElement("option");
+      o.value = it.iso_3166_1 || it.name; o.textContent = it.name;
+      sel.append(o);
+    });
+  }catch(e){}
+}
+loadSelect(document.getElementById("tag"), "/json/tags?order=stationcount&reverse=true&limit=60");
+loadSelect(document.getElementById("country"), "/json/countries?order=stationcount&reverse=true&limit=60");
+loadSelect(document.getElementById("langsel"), "/json/languages?order=stationcount&reverse=true&limit=60");
+
+/* ---------- mirrors ---------- */
+function toggleMirrors(){ document.getElementById("mirrors-box").classList.toggle("open"); }
+async function saveMirrors(){
+  const lines = document.getElementById("mirrors").value.split("\n").map(s=>s.trim()).filter(Boolean);
+  await deviceApi("/api/config",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({mirrors:lines})});
+  mirrors = lines;
+}
+async function validateMirrors(){
+  const out = document.getElementById("mirrors-validate-result");
+  if(!mirrors.length){ out.textContent = T().errNoMirror; return; }
+  out.textContent = T().validating;
+  const results = [];
+  for(const m of mirrors){
+    let ok = false;
+    try{ const r = await fetch(apiBase(m)+"/json/servers"); ok = r.ok; }catch(e){}
+    results.push(m + " " + (ok ? T().mirrorOk : T().mirrorFail));
+  }
+  out.textContent = results.join(" / ");
+}
+async function loadMirrors(){
+  try{
+    const cfg = await deviceApi("/api/config");
+    mirrors = cfg.mirrors.length ? cfg.mirrors : mirrors;
+    document.getElementById("mirrors").value = mirrors.join("\n");
+  }catch(e){}
+}
+loadMirrors();
+renderMine();
+
+/* ---------- language toggle ---------- */
+document.getElementById("lang").onclick = () => {
+  lang = lang==="zh" ? "en" : "zh";
+  localStorage.setItem("radio_lang", lang);
+  applyLang();
+};
+applyLang();
+</script>
+</body>
+</html>

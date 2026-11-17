@@ -1,0 +1,23 @@
+# Main component Kconfig - for CMake-visible options
+
+config USE_RADIO
+    bool "Enable Internet Radio"
+    default n
+    help
+        Enable internet radio streaming support with HTTP/ICY streams.
+
+config BOARD_SKIP_BATTERY_ADC
+    bool "Skip battery ADC polling"
+    default n
+    help
+        Do not read the battery ADC. Emulators do not model the SAR ADC, so
+        adc_oneshot_read() spins forever on the done flag with interrupts
+        disabled and trips the interrupt watchdog.
+
+config BOARD_SKIP_DISPLAY
+    bool "Skip SPI display initialization"
+    default n
+    help
+        Do not initialize the SPI LCD. Emulators do not model the GP-SPI
+        completion flag, so spi_device_polling_transmit() during panel init
+        waits forever.
