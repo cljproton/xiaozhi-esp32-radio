@@ -1,0 +1,72 @@
+name: Build Board
+
+on:
+  # 手动选择单个板卡构建，不影响 Build Boards 的增量 CI。
+  workflow_dispatch:
+    inputs:
+      board:
+        description: '板卡目录，示例：nologo/xingzhi-cube-2.0tft-wifi；无厂商前缀的写 bread-compact-wifi；完整列表见 python3 scripts/build.py --list-boards'
+        required: true
+        type: string
+      name:
+        description: '变体名，示例：xingzhi-cube-2.0tft-wifi；板卡只有单个变体时可留空'
+        required: false
+        type: string
+      language:
+        description: '固件语言'
+        required: true
+        default: zh-CN
+        type: choice
+        options:
+          - zh-CN
+          - en-US
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: espressif/idf:release-v6.1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - id: target
+        name: Validate board
+        shell: bash
+        env:
+          BOARD: ${{ inputs.board }}
+          NAME: ${{ inputs.name }}
+        run: |
+          if [[ ! "$BOARD" =~ ^[A-Za-z0-9._/-]+$ || "$BOARD" == *..* ]]; then
+            echo "::error title=Board not found::'$BOARD' 不是合法的板卡路径。示例：nologo/xingzhi-cube-2.0tft-wifi 或 bread-compact-wifi。完整列表：python3 scripts/build.py --list-boards"
+            exit 1
+          fi
+          if [[ ! -f "main/boards/$BOARD/config.json" ]]; then
+            echo "::error title=Board not found::'$BOARD' 不存在。示例：nologo/xingzhi-cube-2.0tft-wifi 或 bread-compact-wifi。完整列表：python3 scripts/build.py --list-boards"
+            exit 1
+          fi
+          SLUG="${NAME:-$BOARD}"
+          echo "slug=${SLUG//\//-}" >> "$GITHUB_OUTPUT"
+
+      - name: Build selected board
+        shell: bash
+        env:
+          BOARD: ${{ inputs.board }}
+          NAME: ${{ inputs.name }}
+          LANGUAGE: ${{ inputs.language }}
+        run: |
+          source "$IDF_PATH/export.sh"
+          ARGS=()
+          [[ -n "$NAME" ]] && ARGS+=(--name "$NAME")
+          python scripts/build.py "$BOARD" --language "$LANGUAGE" "${ARGS[@]}"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: xiaozhi_${{ steps.target.outputs.slug }}_${{ github.sha }}
+          path: build/merged-binary.bin
+          if-no-files-found: error
+          retention-days: 30
